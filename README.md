@@ -4,13 +4,19 @@ Generate image thumbnails with AWS Lambda.
 
 ## How it works
 
-There are two functions handling the process. First function takes `path` and `querystring` and modify the request so it points to thumbnail. The second function checks if thumbnail already exists. If yes, it lets the CloudFront to load it from S3 bucket and return it to the user. If not, it loads the original image form S3 bucket, resize it, store it in the S3 bucket and returns the content.
+To load thumbnail for any image in the bucket use a prefix `generated/<WIDTH>x<HEIGHT>`. For example to load `images/test.jpg` image with maximum width set to 400 and maximum height set to 400 use `generated/400x400/images/test.jpg` path.
 
-For example there is `image.jpg` somewhere in folder structure. To load the original image, the url looks like this `/example/folder/image.jpg`. To load a thumbnail with maximum width and height set to `400`, the url looks like this `/example/folder/image.jpg?d=400x400`. The first function updates the request so the final url points to thumbnail `/example/folder/400x400/image.jpg`.
+The solution is using `generated` prefix / folder, so that there can be two behaviors created in CloudFront distribution. One is public and anyone can request files from it. The second is private and signed URL is needed to get file.
 
-The first function can be used as CloudFront function, or with some little changes as Lambda function. Second function can be used just as Lambda function.
+This allows to return thumbnails with cache control header and user does not need to refetch them everytime. And in the same time it restricts to fetch original image without signed URL.
 
-First function can be used either as CloudFront Function or as Lambda function.
+#### CloudFront functions
+
+`RestrictPathDimensions` function checks if width and height combination in requested path is allowed. If not, it returns a redirect to the original image. This function is associated with public distribution.
+
+#### Lambda (Edge) function
+
+`ResizeImage` function checks if resource allready exists. If yes, it returns original response. If not, it parses path, extracts width and height, generates resized image, stores it in `generated` folder and returns modified response.
 
 ## Links
 
@@ -18,7 +24,6 @@ First function can be used either as CloudFront Function or as Lambda function.
 * [Authorizing requests with Lambda@Edge](https://dev.to/aws-builders/authorizing-requests-with-lambdaedge-mjm)
 * [Deploy Node.js Lambda functions with .zip file archives](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html#nodejs-package-create-dependencies)
 * [Error: Could not load the "sharp" module using the linux-x64 runtime on AWS Lambda](https://github.com/lovell/sharp/issues/4001)
-
 
 ## License
 
